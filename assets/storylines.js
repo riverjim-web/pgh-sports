@@ -286,3 +286,108 @@ function offseasonLines(team, state, add, now) {
     add('drought', 55, 'bad', `The last Pirates postseason game was the ${fmtMDY(lp.date)} ${lp.label}: ${days.toLocaleString('en-US')} days ago.`, [lp.sourceId]);
   }
 }
+
+// "On the Brightside": positive stats for one team, each with the request it
+// rests on. These are rules over the feed data, like the storylines above,
+// plus every storyline the rules already marked as good news.
+const UNIT = { football: 'points', hockey: 'goals', baseball: 'runs' };
+const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const count = (n) => NUM[n] ?? String(n);
+
+export function brightSide(team, state, now = Date.now()) {
+  if (!team || team.unavailable) return [];
+  const lines = [];
+  const add = (id, weight, text, sources) => lines.push({ id, weight, tone: 'good', text, sources: sources.filter(Boolean) });
+  const us = team.say;
+  const hockey = team.sport === 'hockey';
+  const offseason = team.phase === 'offseason';
+  const sched = team.league === 'MLB' ? 'mlb-schedule' : `espn-schedule-${team.key}`;
+  const done = (team.games || []).filter((g) => g.result && g.pf != null && g.pa != null);
+  const when = offseason ? `in ${team.offseason?.resultsYear ?? team.seasonLabel}` : 'this season';
+
+  // Current and season-best winning runs.
+  let current = 0;
+  for (let i = done.length - 1; i >= 0 && done[i].result === 'W'; i--) current++;
+  let best = 0;
+  let bestEnd = -1;
+  for (let i = 0, run = 0; i < done.length; i++) {
+    run = done[i].result === 'W' ? run + 1 : 0;
+    if (run > best) { best = run; bestEnd = i; }
+  }
+  if (current >= 2) {
+    add('streak', 90, offseason
+      ? `${cap(us)} ended the season on a ${current}-game winning streak.`
+      : `${cap(us)} ${v(us, 'have', 'has')} won ${count(current)} straight.`, [sched]);
+  }
+  if (best >= 3 && best > current) {
+    const first = done[bestEnd - best + 1];
+    const last = done[bestEnd];
+    add('best-run', 60, `Best run ${when}: ${count(best)} straight wins, ${fmtDay(first.date)} to ${fmtDay(last.date)}.`, [sched]);
+  }
+
+  // Standing near the top of the group.
+  const rank = team.standing?.rank;
+  if (rank && rank <= 2 && team.standing.group) {
+    add('top', 95, `${cap(us)} ${offseason ? 'finished' : v(us, 'are', 'is')} ${rank === 1 ? 'first' : ord(rank)} in the ${team.standing.group}.`, team.standing.sources);
+  }
+
+  // Record above .500 (the offseason recap storyline already covers a finished season).
+  const tally = (gs) => ({
+    w: gs.filter((g) => g.result === 'W').length,
+    l: gs.filter((g) => g.result === 'L').length,
+    x: gs.filter((g) => g.result === 'OTL' || g.result === 'T').length,
+  });
+  const rec = (t) => `${t.w}-${t.l}${hockey || t.x ? `-${t.x}` : ''}`;
+  const all = tally(done);
+  if (!offseason && all.w > all.l + all.x) {
+    const over = all.w - all.l - all.x;
+    add('over500', 70, `${cap(us)} ${v(us, 'are', 'is')} ${rec(all)}, ${count(over)} game${over === 1 ? '' : 's'} over .500.`, [sched]);
+  }
+
+  // Scoring margin.
+  const margin = done.reduce((s, g) => s + g.pf - g.pa, 0);
+  if (margin > 0) {
+    add('margin', 55, `${cap(us)} ${offseason ? 'outscored' : v(us, 'have outscored', 'has outscored')} opponents by ${margin} ${UNIT[team.sport] || 'points'} ${when}.`, [sched]);
+  }
+
+  // Home and road splits with a winning record.
+  for (const [where, pick, word] of [['home', (g) => g.home && !g.neutral, 'at home'], ['road', (g) => !g.home && !g.neutral, 'on the road']]) {
+    const t = tally(done.filter(pick));
+    if (t.w + t.l + t.x < 3 || t.w <= t.l + t.x) continue;
+    const perfect = t.l === 0 && t.x === 0;
+    add(where, perfect ? 80 : 45, `${perfect ? 'Unbeaten' : 'Winning'} ${word} ${when}: ${rec(t)}.`, [sched]);
+  }
+
+  // NHL team stats in the league's top ten (from the NHL's own feed).
+  const off = matchedOfficial(team);
+  const sp = off?.special?.pgh;
+  if (sp) {
+    const stats = [
+      ['pp', 'power play', sp.ppRank, sp.pp != null ? pct1(sp.pp) : null],
+      ['pk', 'penalty kill', sp.pkRank, sp.pk != null ? pct1(sp.pk) : null],
+      ['gf', 'scoring', sp.gfRank, sp.gf != null ? `${sp.gf.toFixed(2)} goals a game` : null],
+      ['ga', 'goals against', sp.gaRank, sp.ga != null ? `${sp.ga.toFixed(2)} a game` : null],
+      ['fo', 'faceoffs', sp.foRank, sp.fo != null ? pct1(sp.fo) : null],
+    ];
+    for (const [id, label, r, val] of stats) {
+      if (r && r <= 10 && val) add(`nhl-${id}`, 65 - r, `The ${team.name} ${label} ranks ${ord(r)} in the NHL (${val}).`, ['nhl-rightrail']);
+    }
+  }
+  const hot = off?.lastFive?.find((L) => L.cat === 'points')?.pgh;
+  if (hot?.name && hot.value >= 5) {
+    add('hot', 50, `${hot.name} has ${hot.value} points over the last five games.`, ['nhl-matchup']);
+  }
+
+  // Good news the storyline rules already found (favorite, opponent injuries, rest, ...).
+  const have = new Set(lines.map((l) => l.id));
+  for (const l of storylines(team, state, now)) {
+    if (l.tone !== 'good' || have.has(l.id)) continue;
+    if (l.id === 'form' && have.has('streak')) continue;
+    // Standings stakes and the offseason recap can be "good" while still reading as
+    // 8th in the conference or games out of a Wild Card; the 'top' rule covers standings.
+    if (l.id === 'stakes' || l.id === 'recap') continue;
+
+    add(l.id, l.weight, l.text, l.sources);
+  }
+  return lines.sort((a, b) => b.weight - a.weight);
+}

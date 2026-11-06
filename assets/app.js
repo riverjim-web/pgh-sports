@@ -3,7 +3,7 @@
 // every 30 seconds while a Pittsburgh team is playing.
 
 import { buildAll, TEAMS } from './feeds.js';
-import { storylines, matchedOfficial } from './storylines.js';
+import { storylines, matchedOfficial, brightSide } from './storylines.js';
 import { fmtDay, fmtDayLong, fmtTime, fmtTimeIn, fmtClock, fmtMD, fmtMDY, fmtMonth, etParts, ord, cap, countdown, ago } from './format.js';
 
 const POLL_MS = 5 * 60e3;
@@ -19,7 +19,7 @@ let liveAt = 0;
 let pollTimer = null;
 let refreshing = false;
 let moodAngle = 0;
-const ui = { team: TEAMS[0].key, yinzer: false, showAll: false, game: null };
+const ui = { team: TEAMS[0].key, yinzer: false, showAll: false, game: null, outlook: null };
 
 // ---------------------------------------------------------------- words
 
@@ -52,6 +52,13 @@ const WORDS = {
     moods: ['Gloomy', 'Uneasy', 'Hopeful', 'Buzzing', 'Planning the parade route'],
     map: 'Where they play',
     parade: 'Since the last parade',
+    outlook: 'Good news, bad news',
+    concern: 'Cause for Concern',
+    bright: 'On the Brightside',
+    outlookHint: 'Pick one. The title-drought clocks stay tucked away until you ask for them.',
+    brightTitle: 'Positive stats',
+    brightNote: 'Picked by rules from the feeds, best first, up to three per team.',
+    brightNone: 'Nothing to brag about in the feeds right now.',
     sources: 'Sources and checks',
     live: 'Live',
     snapshot: 'Snapshot',
@@ -88,6 +95,11 @@ const WORDS = {
     moods: ['Grumpier than the Parkway at rush hour', "Worried, n'at", 'Hopeful, yinz', "Buzzin' like the Strip on a Saturday", 'Redd up dahntahn fer the parade'],
     map: 'Dahn by the rivers',
     parade: 'Since the last parade dahntahn',
+    outlook: "Good news, bad news, n'at",
+    concern: 'Rain Clahds',
+    outlookHint: "Go 'head, pick one. The parade clocks stay put away till yinz ask.",
+    brightTitle: "Somethin' to feel good abaht",
+    brightNone: "Nothin' to brag abaht yet. Give 'er time.",
     sources: 'Where we got all this',
     downtown: 'Dahntahn',
   },
@@ -823,7 +835,7 @@ function mapCard() {
 
 const ROUND = { 1: 'first round', 2: 'second round', 3: 'conference final', 4: 'Stanley Cup Final' };
 
-function clocksCard() {
+function clocksCard() { // the 'Cause for Concern' panel
   const hist = state.history || {};
   const rows = [];
   for (const tt of titles?.titles || []) {
@@ -846,8 +858,8 @@ function clocksCard() {
     }
   }
   const daysText = (since) => `${((Date.now() - Date.parse(since)) / DAY).toLocaleString('en-US', { minimumFractionDigits: 5, maximumFractionDigits: 5 })} days`;
-  return h('section', { class: 'card', 'aria-labelledby': 'parade-title' },
-    h('div', { class: 'block-head' }, h('h2', { id: 'parade-title', class: 'section-label', text: say('parade') }), h('span', { class: 'badge', text: 'Ticking' })),
+  return h('div', { class: 'outlook-panel', id: 'outlook-panel', 'data-outlook': 'concern' },
+    h('div', { class: 'block-head' }, h('h3', { class: 'eyebrow', text: say('parade') }), h('span', { class: 'badge', text: 'Ticking' })),
     h('ul', { class: 'clocks' }, rows.map((r) => h('li', { class: `team-${r.key}` },
       h('span', { class: `chip team-${r.key}`, text: OUR_ABBR[r.key] }),
       h('span', { text: `${nick(r.key)} · ${r.title}` }),
@@ -857,10 +869,44 @@ function clocksCard() {
     h('p', { class: 'small muted', text: 'Title dates are fixed and cited. The playoff lines and the newest champions come from the league feeds on each snapshot.' }));
 }
 
+function brightPanel() {
+  const groups = TEAMS.map((tm) => ({ key: tm.key, lines: brightSide(state.teams[tm.key], state).slice(0, 3) })).filter((g) => g.lines.length);
+  return h('div', { class: 'outlook-panel', id: 'outlook-panel', 'data-outlook': 'bright' },
+    h('div', { class: 'block-head' }, h('h3', { class: 'eyebrow', text: say('brightTitle') }), h('span', { class: 'badge', text: 'From the feeds' })),
+    groups.length
+      ? h('ul', { class: 'bright' }, groups.map((g) => h('li', { class: `team-${g.key}` },
+        h('span', { class: `chip team-${g.key}`, text: OUR_ABBR[g.key] }),
+        h('div', {},
+          h('b', { text: nick(g.key) }),
+          h('ul', { class: 'stories' }, g.lines.map((l) => h('li', { class: 'story', 'data-tone': 'good' },
+            h('span', { class: 'story-mark', 'aria-hidden': 'true' }),
+            h('span', { class: 'story-text' }, h('span', { text: yinzify(l.text) }), l.sources.map(srcChip)))))))))
+      : h('p', { class: 'small', text: say('brightNone') }),
+    h('p', { class: 'small muted', text: say('brightNote') }));
+}
+
+function outlookCard() {
+  const pick = (which) => {
+    ui.outlook = ui.outlook === which ? null : which;
+    renderCity();
+    document.getElementById(`outlook-${which}`)?.focus();
+  };
+  const btn = (which, cls) => h('button', {
+    type: 'button', class: `outlook-btn ${cls}`, id: `outlook-${which}`, 'aria-pressed': String(ui.outlook === which),
+    'aria-controls': 'outlook-panel', onclick: () => pick(which), text: say(which),
+  });
+  return h('section', { class: 'card outlook', 'aria-labelledby': 'outlook-title' },
+    h('h2', { id: 'outlook-title', class: 'section-label', text: say('outlook') }),
+    h('div', { class: 'outlook-btns', role: 'group', 'aria-label': say('outlook') }, btn('concern', 'is-concern'), btn('bright', 'is-bright')),
+    ui.outlook === 'concern' ? clocksCard()
+      : ui.outlook === 'bright' ? brightPanel()
+        : h('p', { class: 'small muted', id: 'outlook-panel', text: say('outlookHint') }));
+}
+
 function renderCity() {
   const root = document.getElementById('city');
   if (!state) return;
-  root.replaceChildren(moodCard(), mapCard(), clocksCard());
+  root.replaceChildren(moodCard(), mapCard(), outlookCard());
 }
 
 // ---------------------------------------------------------------- sources

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { storylines } from '../assets/storylines.js';
+import { storylines, brightSide } from '../assets/storylines.js';
 import { computeChecks, parseRecord } from '../assets/feeds.js';
 
 const state = JSON.parse(await readFile(new URL('../data/snapshot.json', import.meta.url), 'utf8'));
@@ -14,6 +14,18 @@ test('every storyline cites a request that was made, and reads cleanly', () => {
   for (const team of Object.values(state.teams)) {
     if (team.unavailable) continue;
     for (const line of storylines(team, state)) {
+      assert.ok(line.sources.length, `${team.key}/${line.id} cites nothing`);
+      for (const id of line.sources) assert.ok(fetched.has(id), `${team.key}/${line.id} cites ${id}, which was never fetched`);
+      assert.doesNotMatch(line.text, /undefined|NaN|null|\[object/, `${team.key}/${line.id}: ${line.text}`);
+    }
+  }
+});
+
+test('every Brightside stat cites a request that was made, and reads cleanly', () => {
+  for (const team of Object.values(state.teams)) {
+    if (team.unavailable) continue;
+    for (const line of brightSide(team, state)) {
+      assert.equal(line.tone, 'good', `${team.key}/${line.id} is not good news`);
       assert.ok(line.sources.length, `${team.key}/${line.id} cites nothing`);
       for (const id of line.sources) assert.ok(fetched.has(id), `${team.key}/${line.id} cites ${id}, which was never fetched`);
       assert.doesNotMatch(line.text, /undefined|NaN|null|\[object/, `${team.key}/${line.id}: ${line.text}`);
@@ -78,4 +90,36 @@ test('records parse with and without overtime losses', () => {
   assert.deepEqual(parseRecord('5-9-2'), { w: 5, l: 9, x: 2 });
   assert.deepEqual(parseRecord('82-80'), { w: 82, l: 80, x: 0 });
   assert.equal(parseRecord(''), null);
+});
+
+test('Brightside counts streaks, splits and margin from the games', () => {
+  const t = football({ name: 'Steelers', say: 'the Steelers', league: 'NFL' });
+  const g = (id, date, result, pf, pa, home) => ({ id, date, result, pf, pa, home, neutral: false, state: 'post', opp: { id: '9', abbr: 'X', say: 'X' } });
+  t.key = 'steelers';
+  t.games = [
+    g('1', '2026-09-13T17:00Z', 'L', 10, 20, false),
+    g('2', '2026-09-20T17:00Z', 'W', 24, 10, true),
+    g('3', '2026-09-27T17:00Z', 'W', 21, 20, true),
+    g('4', '2026-10-04T17:00Z', 'W', 30, 3, true),
+  ];
+  t.standing = { group: 'AFC North', kind: 'nfl', rank: 1, sources: ['s'], rows: [] };
+  const lines = brightSide(t, {});
+  const text = (id) => lines.find((l) => l.id === id)?.text;
+  assert.equal(text('streak'), 'The Steelers have won three straight.');
+  assert.equal(text('top'), 'The Steelers are first in the AFC North.');
+  assert.equal(text('over500'), 'The Steelers are 3-1, two games over .500.');
+  assert.equal(text('margin'), 'The Steelers have outscored opponents by 32 points this season.');
+  assert.equal(text('home'), 'Unbeaten at home this season: 3-0.');
+  assert.equal(text('best-run'), undefined, 'the current streak is the best run, so it is not repeated');
+  assert.ok(lines.every((l) => l.sources.length && l.tone === 'good'));
+});
+
+test('Brightside stays quiet for a losing team', () => {
+  const t = football();
+  t.games = [{ id: '1', date: '2026-10-31T19:00Z', result: 'L', pf: 3, pa: 30, state: 'post', home: true, opp: { id: '9' } }];
+  t.standing.rank = 9;
+  t.next.form.pgh = [{ r: 'L', score: '3-30', date: '2026-10-31T19:00Z' }];
+  t.next.opp.id = '99';
+  const ids = brightSide(t, {}).map((l) => l.id);
+  assert.ok(!ids.some((id) => ['streak', 'over500', 'margin', 'home', 'top'].includes(id)), ids.join(','));
 });

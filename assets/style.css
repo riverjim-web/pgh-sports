@@ -1,6 +1,7 @@
 /* Layout: a black scoreboard masthead, an "up next" rail of four game cards,
    team tabs over a two-column view (next-game preview | season), a three-panel
-   city strip (mood, rivers map, title clocks), then sources and checks.
+   city strip (mood, rivers map, and the good news / bad news card that
+   hides the title clocks), then sources and checks.
    Everything stacks to one column under 860px. */
 :root {
   --bg: #e7e9ec;
@@ -331,7 +332,7 @@ table { border-collapse: collapse; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 
 /* ---------------------------------------------------------------- city strip */
-.city { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding-block: 24px 8px; }
+.city { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; padding-block: 24px 8px; }
 .city .card { display: grid; gap: 12px; align-content: start; }
 .gauge { width: 100%; max-width: 320px; height: auto; justify-self: center; }
 .gauge text { fill: var(--ink-3); font: 500 10px var(--font-mono); }
@@ -367,6 +368,26 @@ details[open] summary { margin-bottom: 6px; }
 .clocks .days { grid-column: 2; font: 900 var(--step-2)/1 var(--font-display); font-stretch: 66%; font-variant-numeric: tabular-nums; }
 .clocks .what { grid-column: 2; font-size: var(--step--1); color: var(--ink-2); }
 .clocks .verified { grid-column: 2; font-size: 0.75rem; color: var(--ink-3); }
+
+/* Good news, bad news: the drought clocks and the positive stats wait behind two buttons. */
+.outlook-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.outlook-btn {
+  --tone: var(--ink-3);
+  border: 1px solid var(--rule); border-left: 4px solid var(--tone); background: var(--panel-2); color: var(--ink);
+  padding: 10px 12px; border-radius: var(--radius); cursor: pointer; text-align: left;
+  font: 700 var(--step--1)/1.2 var(--font-display); font-stretch: 85%; letter-spacing: 0.06em; text-transform: uppercase;
+  transition: background 0.2s, border-color 0.2s;
+}
+.outlook-btn.is-concern { --tone: var(--loss); }
+.outlook-btn.is-bright { --tone: var(--win); }
+.outlook-btn:hover { border-color: var(--tone); }
+.outlook-btn:focus-visible { outline: 2px solid var(--tone); outline-offset: 2px; }
+.outlook-btn[aria-pressed="true"] { border-color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, var(--panel)); }
+.outlook-panel { display: grid; gap: 12px; }
+.bright { display: grid; gap: 12px; }
+.bright > li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; }
+.bright b { font-weight: 700; }
+.bright .story { padding: 6px 0; font-size: var(--step--1); }
 
 /* ---------------------------------------------------------------- sources */
 .sources { padding-block: 24px 32px; display: grid; gap: 12px; }
