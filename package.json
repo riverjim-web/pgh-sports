@@ -1,0 +1,12 @@
+{
+  "name": "pgh-sports",
+  "private": true,
+  "type": "module",
+  "description": "Pittsburgh sports dashboard: next games, storylines and player notes from public feeds.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "snapshot": "node scripts/build-snapshot.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "serve": "python -m http.server 8080"
+  }
+}

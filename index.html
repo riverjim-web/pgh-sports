@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pittsburgh Sports Dashboard</title>
+<meta name="description" content="Who the Steelers, Penguins, Pirates and Pitt play next, where and when, with storylines and player notes built from public league feeds.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23101215'/%3E%3Cpath d='M6 25 L16 7 L26 25 Z' fill='%23ffb612'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Libre+Franklin:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script type="module" src="assets/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#team-view">Skip to the team view</a>
+
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 28 L16 4 L29 28 Z"/></svg>
+      <div>
+        <p class="brand-eyebrow" data-t="eyebrow">Steelers · Penguins · Pirates · Pitt</p>
+        <h1 class="brand-name" data-t="brand">Pittsburgh Sports</h1>
+      </div>
+    </div>
+    <div class="masthead-meta">
+      <p class="clock" id="clock" aria-live="off">&nbsp;</p>
+      <p class="status" id="status" aria-live="polite">Loading feeds…</p>
+      <button type="button" class="yinzer" id="yinzer" aria-pressed="false" data-t="yinzer">Yinzer mode</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="wrap upnext" id="upnext" aria-labelledby="upnext-title">
+    <h2 class="section-label" id="upnext-title" data-t="upnext">Up next</h2>
+    <p class="placeholder">Loading the schedule…</p>
+  </section>
+
+  <section class="wrap team-section" aria-label="Team detail">
+    <div class="tabs" id="tabs" role="tablist" aria-label="Teams"></div>
+    <div class="team-view" id="team-view" role="tabpanel" tabindex="-1"></div>
+  </section>
+
+  <section class="wrap city" id="city" aria-label="Around the city"></section>
+
+  <section class="wrap sources" id="sources" aria-labelledby="sources-title"></section>
+</main>
+
+<footer class="wrap colophon">
+  <p>Built from public feeds: ESPN, the NHL, MLB, the National Weather Service and Open-Meteo. A GitHub Action rebuilds the snapshot every 30 minutes, and your browser refreshes the feeds that allow it every 5 minutes, or every 30 seconds during a game. ESPN's and the NHL's endpoints are unofficial and can change without notice. Not affiliated with any team or league.</p>
+</footer>
+<noscript><p class="wrap">This dashboard needs JavaScript to read the league feeds.</p></noscript>
+</body>
+</html>

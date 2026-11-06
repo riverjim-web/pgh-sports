@@ -1,0 +1,36 @@
+{
+  "note": "Championship dates never change, so they are fixed here with a citation. Each snapshot separately reads the newest Super Bowl, Stanley Cup and World Series winners from the league feeds, which confirms these clocks are still running.",
+  "titles": [
+    {
+      "team": "steelers",
+      "event": "Super Bowl XLIII",
+      "date": "2009-02-01",
+      "detail": "27-23 over Arizona in Tampa",
+      "source": "https://en.wikipedia.org/wiki/Super_Bowl_XLIII",
+      "latest": "latestSuperBowl"
+    },
+    {
+      "team": "penguins",
+      "event": "2017 Stanley Cup",
+      "date": "2017-06-11",
+      "detail": "Game 6, 2-0 at Nashville",
+      "source": "https://en.wikipedia.org/wiki/2017_Stanley_Cup_Final",
+      "latest": "latestStanleyCup"
+    },
+    {
+      "team": "pirates",
+      "event": "1979 World Series",
+      "date": "1979-10-17",
+      "detail": "Game 7, 4-1 at Baltimore",
+      "source": "https://en.wikipedia.org/wiki/1979_World_Series",
+      "latest": "latestWorldSeries"
+    },
+    {
+      "team": "pitt",
+      "event": "1976 national championship",
+      "date": "1977-01-01",
+      "detail": "Sugar Bowl, 27-3 over Georgia",
+      "source": "https://en.wikipedia.org/wiki/1977_Sugar_Bowl"
+    }
+  ]
+}
